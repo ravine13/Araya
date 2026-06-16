@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   // "RECRUITER" | "CANDIDATE"
+  createdAt    DateTime @default(now())
+
+  // For recruiters: the hospital they manage
+  hospitalId   String?
+  hospital     Hospital? @relation(fields: [hospitalId], references: [id])
+
+  // For candidates: their profile
+  candidate    Candidate?
+}
+
+model Hospital {
+  id                 String   @id @default(uuid())
+  name               String
+  shortName          String?
+  type               String?
+  city               String?
+  state              String?
+  address            String?
+  phone              String?
+  email              String?
+  website            String?
+  registrationNumber String?
+  beds               Int?
+  founded            Int?
+  about              String?
+  specialties        String   // JSON string
+  verified           Boolean  @default(false)
+  verifiedOn         String?
+  verifiedBy         String?
+
+  jobs               Job[]
+  users              User[]
+}
+
+model Job {
+  id               String   @id @default(uuid())
+  role             String
+  category         String?
+  specialty        String
+  subSpecialty     String?
+  location         String
+  city             String?
+  salaryMin        Float
+  salaryMax        Float
+  experienceMin    Int?
+  experienceMax    Int?
+  experience       String?
+  type             String
+  shift            String?
+  status           String   @default("Active")
+  postedDays       Int?
+  postedOn         String?
+  description      String
+  responsibilities String?
+  requirements     String?
+  perks            String?
+  tags             String?
+  /// JSON array of recruiter-defined application fields for this job
+  customApplicationFields String?
+
+  hospitalId       String
+  hospital         Hospital @relation(fields: [hospitalId], references: [id])
+
+  applications     Application[]
+  savedBy          SavedJob[]
+}
+
+model Candidate {
+  id              String   @id @default(uuid())
+  name            String
+  initials        String?
+  role            String?
+  specialty       String?
+  experienceYears Int?
+  location        String?
+  currentEmployer String?
+  summary         String?
+  matchPercent    Int?
+  verified        Boolean  @default(false)
+  registration    String?
+  email           String   @unique
+  phone           String?
+  languages       String?
+  procedures      String?
+  skills          String?
+  education       String?
+  certifications  String?
+  experience      String?
+  profileJson     String?  // full form profile snapshot
+  cvSource        String?  // "form" | "upload"
+  uploadedCvName  String?
+  uploadedCvMime  String?
+  uploadedCvData  String?  // base64 data URL
+
+  // Link to auth user
+  userId          String?  @unique
+  user            User?    @relation(fields: [userId], references: [id])
+
+  applications    Application[]
+  savedJobs       SavedJob[]
+}
+
+model SavedJob {
+  id          String   @id @default(uuid())
+  savedAt     DateTime @default(now())
+
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  jobId       String
+  job         Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([candidateId, jobId])
+}
+
+model Application {
+  id          String    @id @default(uuid())
+  status      String    @default("New")
+  appliedOn   DateTime  @default(now())
+  cvSource    String?   // "form" | "upload"
+  uploadedCvName  String?
+  uploadedCvMime  String?
+  uploadedCvData  String?
+  /// JSON object: { [fieldId]: value } for job-specific questions
+  customFieldResponses String?
+
+  jobId       String
+  job         Job       @relation(fields: [jobId], references: [id])
+
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [id])
+
+  @@unique([jobId, candidateId])
+}
